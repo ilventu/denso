@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   id="svg5560"
+   height="252.34mm"
+   width="151.03mm"
+   version="1.1"
+   viewBox="0 0 535.15647 894.135"
+   sodipodi:docname="7Segment1.svg"
+   inkscape:version="1.0.2 (e86c870879, 2021-01-15, custom)">
+  <defs
+     id="defs22" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1136"
+     id="namedview20"
+     showgrid="false"
+     inkscape:zoom="1.0306944"
+     inkscape:cx="285.41102"
+     inkscape:cy="476.86299"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5560" />
+  <metadata
+     id="metadata5565">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <path
+     id="path5709"
+     d="m 178.52,60 c 0,0 -30.59,5.557 -44.18,12.621 -12.6,6.555 -33.13,26.824 -33.13,26.824 l 104.14,48.915 145.16,-1.58 55.22,-80.469 z m -94.666,63.12 -18.932,290.32 28.619,17.57 75.519,-45.97 14.2,-216.17 z m 108.45,277.69 -83.62,50.49 69.42,34.72 157.79,7.88 92.68,-33.54 -87.92,-58.71 z m -100.5,73.38 -26.221,18.4 -5.578,287.85 100.97,-47.97 8.92,-220.35 z m 232.68,278.9 -148.59,0.5 -101.57,49.03 c 0.002,0 17.693,15.28 28,20.54 9.68,4.94 31.04,9.98 31.04,9.98 l 243.15,0.99 z"
+     fill-rule="evenodd"
+     fill="#141414"
+     style="opacity:0.6" />
+  <path
+     id="path5711"
+     d="m 427.82,77.355 -58.38,86.785 -9.47,219.32 80.47,53.64 20.52,-20.51 14.2,-277.7 c 0,0 -7.29,-24.26 -17.63,-36.46 -6.8,-8.03 -29.71,-25.075 -29.71,-25.075 z m 23.67,400.76 -97.83,34.72 -7.89,225.63 52.07,83.62 c 0,0 31.57,-18.32 41.03,-33.13 9.33,-14.63 12.62,-50.49 12.62,-50.49 l 11.04,-244.57 z"
+     fill-rule="evenodd"
+     fill="#ff4a00" />
+</svg>
