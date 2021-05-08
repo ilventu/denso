@@ -1,5 +1,6 @@
-#include "densitometer.h"
-#include "ui_densitometer.h"
+#include <vector>
+
+using namespace std;
 
 #include <QTimer>
 #include <QMimeData>
@@ -12,6 +13,9 @@
 #include <QSvgRenderer>
 #include <QTextStream>
 #include <QDebug>
+
+#include "densitometer.h"
+#include "ui_densitometer.h"
 
 typedef unsigned short pixel;
 
@@ -151,9 +155,62 @@ std::vector<double> expected = {
     44.67,
     63.1,
     89.13
-
 };
 
+/* stouffer mask
+std::vector<double> measured = {
+    2.47,
+    2.61,
+    2.83,
+    3.15,
+    3.64,
+    4.29,
+    5.2,
+    5.95,
+    7.01,
+    8.41,
+    10.5,
+    12.93,
+    16.24,
+    20.52,
+    25.73,
+    33,
+    41.15,
+    51.4,
+    65.4,
+    81.9,
+    97.3
+};
+*/
+
+/* stouffer mask negative
+*/
+std::vector<double> measured = {
+3.62,
+3.85,
+4.28,
+4.86,
+5.4,
+6.08,
+7.18,
+8.38,
+9.98,
+12.12,
+15.24,
+18.68,
+23.75,
+29.94,
+37.63,
+48.15,
+60.17,
+75.25,
+91.62,
+96.51,
+99.52
+};
+
+/* no mask
+ *
 std::vector<double> measured = {
     2.57,
     2.6,
@@ -177,6 +234,8 @@ std::vector<double> measured = {
     79.64,
     94.48
 };
+*/
+
 
 Densitometer::Densitometer(QWidget *parent)
     : QDialog(parent)
@@ -185,10 +244,12 @@ Densitometer::Densitometer(QWidget *parent)
    setWindowFlags(Qt::Window);
     ui->setupUi(this);
 
-    img = imread("/mnt/sata3/Fotografia/profiles/batch/v850 gamma default-BW.tiff", IMREAD_GRAYSCALE | CV_16UC1 );//Load image;
+//    img = imread("/mnt/sata3/Fotografia/profiles/batch/v850 gamma default-BW-big.tiff", IMREAD_GRAYSCALE | CV_16UC1 );//Load image;
 //    img = imread("/home/andrea/Sviluppo/build-sanetest-Desktop-Debug/stouffer-2.png", IMREAD_GRAYSCALE | CV_16UC1 );//Load image;
-// OK   img = imread("/home/andrea/Sviluppo/build-sanetest-Desktop-Debug/stouffer-2-1.png", IMREAD_GRAYSCALE | CV_16UC1 );//Load image;
-//   img = imread("/home/andrea/Sviluppo/build-sanetest-Desktop-Debug/sesto-2.png", IMREAD_GRAYSCALE | CV_16UC1 );//Load image;
+//    img = imread("/home/andrea/Sviluppo/build-sanetest-Desktop-Debug/sesto-2.png", IMREAD_GRAYSCALE | CV_16UC1 );//Load image;
+    img = imread("/mnt/sata3/Fotografia/da sistemare/test gamma 1.0004.png", IMREAD_GRAYSCALE | CV_16UC1 );// Stouffer
+
+
 
     int type = img.type();
     if (  type != CV_16UC1 )
@@ -196,10 +257,6 @@ Densitometer::Densitometer(QWidget *parent)
         exit (-1);
     }
 
-//    posx = img.size().width / 2;
-//    posy = img.size().height / 2;
-
-    int radius = 20;
     aim = Mat ( radius * 2, radius * 2, CV_8UC1, Scalar(0));
     circle ( aim, Point(radius, radius), radius, Scalar(255), FILLED );
 
@@ -225,20 +282,38 @@ void Densitometer::mousePressEvent(QMouseEvent *event)
 
 void Densitometer::mouseMoveEvent(QMouseEvent* event)
 {
-    posx += startx - event->globalX();
-    posy += starty - event->globalY();
+    if ( rotation[nrotation] == cv::ROTATE_90_COUNTERCLOCKWISE )
+    {
+        posx -= ( starty - event->globalY() ) / zoom;
+        posy += ( startx - event->globalX() ) / zoom;
+    }
+    else if ( rotation[nrotation] == cv::ROTATE_180 )
+    {
+        posx -= ( startx - event->globalX() ) / zoom;
+        posy -= ( starty - event->globalY() ) / zoom;
+    }
+    else if ( rotation[nrotation] == cv::ROTATE_90_CLOCKWISE )
+    {
+        posx += ( starty - event->globalY() ) / zoom;
+        posy -= ( startx - event->globalX() ) / zoom;
+    }
+    else
+    {
+        posx += ( startx - event->globalX() ) / zoom;
+        posy += ( starty - event->globalY() ) / zoom;
+    }
 
-    if ( posx <= -ui->image->width() )
-         posx = -ui->image->width() + 1;
+    if ( posx < -(img.size().width / 2 ) )
+         posx = -(img.size().width / 2 );
 
-    if ( posy <= -ui->image->height() )
-         posy = -ui->image->height() + 1;
+    if ( posy < -(img.size().height / 2) )
+         posy = -(img.size().height / 2 );
 
-    if ( posx >= img.size().width )
-        posx = img.size().width - 1;
+    if ( posx >= (img.size().width / 2))
+        posx = (img.size().width / 2) -1;
 
-    if ( posy >= img.size().height )
-        posy = img.size().height - 1;
+    if ( posy >= (img.size().height / 2))
+        posy = (img.size().height / 2) - 1;
 
     startx = event->globalX();
     starty = event->globalY();
@@ -268,67 +343,88 @@ void Densitometer::wheelEvent(QWheelEvent * event)
     draw( posx, posy, ui->image->width(), ui->image->height() );
 }
 
+void Densitometer::keyPressEvent(QKeyEvent *event)
+{
+    if ( event->key() == Qt::Key_Space )
+        nlight ++;
+    else if ( event->key() == Qt::Key_Left )
+        nrotation ++;
+    else if ( event->key() == Qt::Key_Right )
+           nrotation --;
+
+    if ( light[nlight] == -1 )
+        nlight = 0;
+
+    if ( nrotation < 0 )
+        nrotation = 3;
+
+    if ( nrotation > 3 )
+        nrotation = 0;
+
+    draw( posx, posy, ui->image->width(), ui->image->height() );
+}
+
 void Densitometer::draw( int x, int y, int w, int h )
 {
-    Point center ( w / 2, h / 2 );
+    Point centerImg;
+    Point roiTL ( 0, 0 );
+    Point roiBR;
+    centerImg = Point ( x, y );
 
-//    x = ( x + ( img.size().width / 2 ) ) * zoom;
-//    y = ( y + ( img.size().height / 2 ) ) * zoom;
-
-    int mx = 0, my = 0;
-    int cutw = 0, cuth = 0;
-
-    if ( x < 0 )
-    {
-        mx = -x;
-        x = 0;
-    }
-
-    if ( y < 0 )
-    {
-        my = -y;
-        y = 0;
-    }
-
-    int zimw = img.size().width * zoom;
-    int zimh = img.size().height * zoom;
-
-    if ( x + w < zimw )
-        cutw = w;
+    if ( rotation[nrotation] == cv::ROTATE_90_COUNTERCLOCKWISE ||
+         rotation[nrotation] == cv::ROTATE_90_CLOCKWISE )
+        roiBR = Point ( h, w );
     else
-        cutw = zimw - x + mx;
+        roiBR = Point ( w, h );
 
-    if ( cutw > w )
-        cutw = w;
+    Mat draw ( roiBR.y, roiBR.x, CV_16UC1, Scalar(50000) );
 
-    if ( y + h < zimh )
-        cuth = h;
-    else
-        cuth = zimh - y + my;
+    Point center ( roiBR.x / 2, roiBR.y / 2 );
 
-    if ( cuth > h )
-        cuth = h;
+    Point imgTL ( img.size().width / 2 + centerImg.x - center.x / zoom, img.size().height / 2 + centerImg.y - center.y / zoom );
+    Point imgBR ( img.size().width / 2 + centerImg.x + center.x / zoom, img.size().height / 2 + centerImg.y + center.y / zoom );
 
-    Mat to_draw ( h, w, CV_16UC1, Scalar(LMAX) );
+    if ( imgTL.x < 0 )
     {
-        Mat destRoi;
-        cv::Rect rect ( x / zoom, y / zoom, ( cutw - mx ) / zoom, (cuth - my) / zoom );
-        Mat to_resize (img (rect));
-        Mat crop;
-        cv::resize(to_resize, crop, cv::Size(cutw - mx, cuth - my), 0, 0, INTER_LINEAR_EXACT);
-
-        Rect rectRoi( mx, my, cutw - mx, cuth - my );
-        destRoi = to_draw ( rectRoi );
-        crop.copyTo(destRoi);
-
-//imshow("to_resize", to_resize );
-//imshow("crop", crop );
-//imshow("crop", to_draw );
-
+        roiTL.x = -imgTL.x * zoom;
+        imgTL.x = 0;
     }
+
+    if ( imgTL.y < 0 )
+    {
+        roiTL.y = -imgTL.y * zoom;
+        imgTL.y = 0;
+    }
+
+    if ( imgBR.x > img.size().width )
+    {
+        roiBR.x -= ( imgBR.x - img.size().width ) * zoom;
+        imgBR.x = img.size().width;
+    }
+
+    if ( imgBR.y > img.size().height )
+    {
+        roiBR.y -= ( imgBR.y - img.size().height ) * zoom;
+        imgBR.y = img.size().height;
+    }
+
+    Rect imgRect ( imgTL, imgBR );
+    Rect roiRect ( roiTL, roiBR );
+
+    Mat cropMat ( img ( imgRect ) );
+    Mat resizeMat;
+    cv::resize( cropMat, resizeMat, cv::Size( roiRect.width, roiRect.height ), 0, 0, INTER_LINEAR_EXACT);
+
+//imshow("cropMat", cropMat );
+
+    Mat roiMat = draw ( roiRect );
+    resizeMat.copyTo( roiMat );
+
+//imshow("roiMat", roiMat );
+//imshow("draw", draw );
 
     int radius = aim.size().width / 2;
-    Point centerbox ( w / 2 - radius, h / 2 - radius );
+    Point centerbox ( draw.size().width / 2 - radius, draw.size().height / 2 - radius );
     Point pt;
     float tot = 0;
     int n = 0;
@@ -340,16 +436,14 @@ void Densitometer::draw( int x, int y, int w, int h )
         {
             pt.x = centerbox.x + i;
             pt.y = centerbox.y + j;
-            pixel p = to_draw.at<pixel>( pt );
+            pixel p = draw.at<pixel>( pt );
 
             tot += p;
             n++;
 
-            if ( p + 10000 < LMAX )
-                p += 10000;
-            else
-                p = LMAX;
-            to_draw.at<pixel>( pt ) = p;
+            p = LMAX * pow ( p / LMAX, 1 / 1.8 );
+
+            draw.at<pixel>( pt ) = p;
         }
       }
     }
@@ -365,9 +459,25 @@ void Densitometer::draw( int x, int y, int w, int h )
 
     ui->top->setText( d );
 
-    Mat img_higher_brightness;
-    to_draw.convertTo(img_higher_brightness, -1, 1, 5000); //increase the brightness by 20 for each pixel
-    QImage draw = cvMatToQImage( img_higher_brightness );
+    Mat draw8;
+    draw.convertTo(draw8, CV_8UC1, 1 / 256.0 * ( ( 1 + light[nlight] ) / 2 ) );
+
+    cv::Mat lookUpTable(1, 256, CV_8UC1);
+
+    for( int i = 0; i < 256; ++i)
+        lookUpTable.at<unsigned char>(0,i) = 2.55 * calib ( i / 2.55 );
+
+    cv::LUT( draw8, lookUpTable, draw8 );
+
+    for( int i = 0; i < 256; ++i)
+        lookUpTable.at<unsigned char>(0,i) = 255 * pow ( i / 255.0, 1 / light[nlight] );;
+
+    cv::LUT( draw8, lookUpTable, draw8 );
+
+    if ( rotation[nrotation] != -1 )
+        cv::rotate( draw8, draw8, rotation[nrotation]);
+
+    QImage imDraw = cvMatToQImage( draw8 );
 
     QSvgRenderer renderer( QString ( ":/images/mirino.svg" ) );
     QRectF b = renderer.viewBoxF();
@@ -376,10 +486,10 @@ void Densitometer::draw( int x, int y, int w, int h )
     int height = width * ratio;
 
     // Get QPainter that paints to the image
-    QPainter painter(&draw);
+    QPainter painter(&imDraw);
     renderer.render(&painter, QRect( w / 2 - height - (181), h / 2 - (height / 2) + 1, width, height ));
 
-    QPixmap px = QPixmap::fromImage ( draw );
+    QPixmap px = QPixmap::fromImage ( imDraw );
     ui->image->setPixmap ( px );
 }
 
