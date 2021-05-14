@@ -1,5 +1,5 @@
-QT += core gui
-QT += svg
+QT += core gui svg
+QT += charts
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -7,7 +7,6 @@ CONFIG += c++11
 
 CONFIG    += link_pkgconfig
 PKGCONFIG += opencv4
-PKGCONFIG += fmt
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -15,20 +14,22 @@ PKGCONFIG += fmt
 
 SOURCES += \
     main.cpp \
-    densitometer.cpp
+    denso.cpp \
+    profileseditor.cpp
 
 HEADERS += \
-    densitometer.h
+    denso.h \
+    profileseditor.h \
+    spline.h
 
 FORMS += \
-    densitometer.ui
+    denso.ui \
+    profileseditor.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-DISTFILES +=
-
 RESOURCES += \
-    resources.qrc
+    denso.qrc

@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/rotate_right.svg</file>
+        <file>icons/rotate_left.svg</file>
+        <file>icons/zoomout.svg</file>
+        <file>icons/zoomin.svg</file>
+        <file>icons/light-bulb.svg</file>
+        <file>images/mirino.svg</file>
+        <file>fonts/Digital7Mono-B1g5.ttf</file>
+    </qresource>
+</RCC>
