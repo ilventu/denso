@@ -50,7 +50,37 @@ public:
         for (const auto& element : jmeasured )
             measured.push_back( element.toDouble() );
     }
+};
 
+class Profiles : public QObjectList
+{
+public:
+    QJsonObject toJson ()
+    {
+        QJsonArray jprofiles;
+        for (const auto& element : *this )
+            jprofiles.push_back( ((Profile *)element)->toJson( ) );
+
+        QJsonObject jobject;
+
+        jobject["profiles"] = jprofiles;
+
+        return jobject;
+    }
+
+    void fromJson ( const QJsonObject &jobject )
+    {
+        QJsonArray jprofiles;
+
+        jprofiles = jobject["profiles"].toArray();
+
+        for (const auto& element : jprofiles )
+        {
+            Profile *p = new Profile;
+            p->fromJson(element.toObject());
+            push_back( p );
+        }
+    }
 };
 
 class ProfilesEditor : public QMainWindow
@@ -60,6 +90,8 @@ class ProfilesEditor : public QMainWindow
 public:
     explicit ProfilesEditor(QWidget *parent = nullptr);
     ~ProfilesEditor();
+
+    Profiles profiles;
 
 private:
     Ui::ProfilesEditor *ui;

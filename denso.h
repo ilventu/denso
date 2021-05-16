@@ -46,8 +46,10 @@ private:
 
     QString digitFont;
 
+    bool bCalib;
     tk::spline calib;
 
+    Profiles profiles;
     QComboBox profileCombo;
     ProfilesEditor *wndProfiles;
 
@@ -62,6 +64,7 @@ private:
     void dropEvent(QDropEvent *event);
 
     void readFile( const QString &file );
+    void readFile( const QStringList &files );
     void draw( );
     void DrawNumber ( QPainter &painter, QPoint point, const QString &text );
 

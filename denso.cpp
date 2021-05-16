@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QFontDatabase>
 #include <QSettings>
+#include <QJsonDocument>
 
 typedef unsigned short pixel;
 
@@ -167,8 +168,6 @@ Denso::Denso(QWidget *parent)
     aim = Mat ( radius * 2, radius * 2, CV_8UC1, Scalar(0));
     circle ( aim, Point(radius, radius), radius, Scalar(255), FILLED );
 
-    calib = tk::spline ( measured, expected, tk::spline::cspline );
-
     int id = QFontDatabase::addApplicationFont(":/fonts/Digital7Mono-B1g5.ttf");
     digitFont = QFontDatabase::applicationFontFamilies(id).at(0);
 
@@ -178,10 +177,25 @@ Denso::Denso(QWidget *parent)
 
     connect( &profileCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onChangeProfile(int)));
 
+    QSettings settingsProfiles ("denso", "profiles" );
+    QFile qFile  ( settingsProfiles.fileName() );
+    qFile.open(QIODevice::ReadOnly);
+    QByteArray sj = qFile.readAll();
+    QJsonDocument doc = QJsonDocument::fromJson( sj );
+    profiles.fromJson( doc.object() );
+    qFile.close();
+
     profileCombo.setFocusPolicy(Qt::NoFocus);
     profileCombo.addItem( "Image raw data" /* , const QVariant &userData = QVariant()) */ );
-    profileCombo.addItem( "Negative (Stouffer T2115)" /* , const QVariant &userData = QVariant()) */ );
-    profileCombo.addItem( "Positive (Stouffer T2115)" /* , const QVariant &userData = QVariant()) */ );
+
+    for ( int i = 0; i < profiles.size(); i++ )
+    {
+        Profile *p = (Profile *)profiles.at(i);
+        profileCombo.addItem( p->name ); // "Negative (Stouffer T2115)" /* , const QVariant &userData = QVariant()) */ );
+    }
+//    profileCombo.addItem( "Positive (Stouffer T2115)" /* , const QVariant &userData = QVariant()) */ );
+
+    calib = tk::spline ( measured, expected, tk::spline::cspline );
 
     wndProfiles = new ProfilesEditor (this);
     readSettings();
@@ -289,12 +303,22 @@ void Denso::onChangeProfile (int index)
 {
     std::vector<double> defaultvals = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100  };
 
-    if ( index == 2 )
+/*    if ( index == 2 )
         calib = tk::spline ( measured_pos, expected, tk::spline::cspline );
     else if ( index == 1 )
         calib = tk::spline ( measured, expected, tk::spline::cspline );
     else
-        calib = tk::spline ( defaultvals, defaultvals, tk::spline::cspline );
+        calib = tk::spline ( defaultvals, defaultvals, tk::spline::cspline ); */
+
+    bCalib = index;
+
+    if ( index )
+    {
+        Profile *p = (Profile *)profiles.at( index - 1 );
+        std::sort(p->expected.begin(), p->expected.end());
+        std::sort(p->measured.begin(), p->measured.end());
+        calib = tk::spline (p->measured, p->expected, tk::spline::cspline );
+    }
 
     draw( );
 }
@@ -314,8 +338,18 @@ void Denso::dropEvent(QDropEvent *event)
     {
         QList<QUrl> urlList = mimeData->urls();
 
+
         // extract the local paths of the files
-        if ( urlList.size() )
+        if ( urlList.size() > 1 )
+        {
+            QStringList filenamel;
+            int i = 0;
+            for ( ; i < urlList.size(); i++ )
+                filenamel.append( urlList.at(i).toLocalFile() );
+
+            readFile( filenamel );
+        }
+        else if ( urlList.size() )
         {
               readFile( urlList.at(0).toLocalFile() );
               event->acceptProposedAction();
@@ -330,8 +364,34 @@ void Denso::readFile( const QString &file )
     {
         img = newimg;
         fileName = file;
+        this->setWindowTitle( "Denso - " + fileName);
         draw( );
     }
+}
+
+void Denso::readFile( const QStringList &files )
+{
+    Mat src, tot = imread ( files.at(0).toStdString(), IMREAD_GRAYSCALE | CV_16UC1 );
+    if ( tot.empty() )
+        return;
+
+    tot.convertTo( tot, CV_32FC1 );
+    int d = tot.type();
+    int d2 = CV_32FC1;
+
+    for ( int i = 1; i < files.size(); i++ )
+    {
+        src = imread ( files.at(i).toStdString(), IMREAD_GRAYSCALE | CV_16UC1 );
+        if ( src.empty() || src.size() != tot.size() )
+            return;
+        src.convertTo( src, CV_32FC1 );
+        accumulate(src, tot);
+    }
+
+    tot.convertTo( img, CV_16UC1, 1.0 / files.size() );
+//    fileName = files;
+    this->setWindowTitle( "Denso - " + files.at(0) + "*" );
+    draw( );
 }
 
 int startx = 0;
@@ -506,7 +566,11 @@ void Denso::draw( )
                 pt.x = centerbox.x + i;
                 pt.y = centerbox.y + j;
                 pixel p = draw.at<pixel>( pt );
-                lc = calib( p / LMAX * 100 );
+
+                if ( bCalib )
+                    lc = calib( p / LMAX * 100 );
+                else
+                    lc = p / LMAX * 100;
 
                 tot += p / LMAX * 100;
                 totc += lc;
@@ -530,10 +594,13 @@ void Denso::draw( )
 
     cv::LUT( draw8, lookUpTable, draw8 );
 
-    for( int i = 0; i < 256; ++i)
-        lookUpTable.at<unsigned char>(0,i) = 2.55 * calib ( i / 2.55 );
+    if ( bCalib )
+    {
+        for( int i = 0; i < 256; ++i)
+            lookUpTable.at<unsigned char>(0,i) = 2.55 * calib ( i / 2.55 );
 
-    cv::LUT( draw8, lookUpTable, draw8 );
+        cv::LUT( draw8, lookUpTable, draw8 );
+    }
 
     if ( rotations[nrotation] != -1 )
         cv::rotate( draw8, draw8, rotations[nrotation]);
@@ -615,7 +682,7 @@ void Denso::draw( )
 void Denso::DrawNumber ( QPainter &painter, QPoint point, const QString &text )
 {
     QPen penFG = painter.pen();
-    QPen penBG = QColor ( 0x00, 0x00, 0x00, .20 * 255 );
+    QPen penBG = QColor ( 0xf0, 0xf0, 0xf0, .03 * 255 );
     int dotl = QFontMetrics(painter.font()).size(Qt::TextSingleLine, ".").width() / 3;
     int chrl = QFontMetrics(painter.font()).size(Qt::TextSingleLine, "8").width();
 
@@ -737,5 +804,6 @@ void Denso::keyPressEvent(QKeyEvent *event)
 
 void Denso::on_actionEdit_profiles_triggered()
 {
-    wndProfiles->show();
+
+    wndProfiles->show( );
 }

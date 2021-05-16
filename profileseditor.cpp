@@ -29,9 +29,6 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
     std::sort(p->expected.begin(), p->expected.end(), std::greater<double>());
     std::sort(p->measured.begin(), p->measured.end(), std::greater<double>());
 
-    QJsonDocument doc(p->toJson());
-    QString strJson(doc.toJson(QJsonDocument::Compact));
-
     QLineSeries *seriesExpected = new QLineSeries();
     QLineSeries *seriesMeasured = new QLineSeries();
     QLineSeries *seriesExpectedD = new QLineSeries();
@@ -107,6 +104,18 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
     chartView->setRenderHint(QPainter::Antialiasing);
     ui->verticalLayout->addWidget(chartView);
 
+/*
+    QSettings settings ("denso", "profiles" );
+    QFile qFile  ( settings.fileName() );
+
+    p->name = "V850 Pro (Positive)";
+    profiles.append( p );
+    QJsonDocument doc(profiles.toJson());
+    QString json ( doc.toJson ( QJsonDocument::Indented ) );
+    qFile.open(QIODevice::WriteOnly);
+    QTextStream out(&qFile); out << json;
+    qFile.close();
+*/
 }
 
 ProfilesEditor::~ProfilesEditor()
