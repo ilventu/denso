@@ -598,7 +598,8 @@
   </action>
   <action name="actionEdit_profiles">
    <property name="icon">
-    <iconset theme="document-properties-symbolic"/>
+    <iconset theme="document-properties-symbolic">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Edit profiles</string>

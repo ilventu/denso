@@ -177,6 +177,8 @@ Denso::Denso(QWidget *parent)
 
     connect( &profileCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onChangeProfile(int)));
 
+    wndProfiles = new ProfilesEditor (this);
+
     QSettings settingsProfiles ("denso", "profiles" );
     QFile qFile  ( settingsProfiles.fileName() );
     qFile.open(QIODevice::ReadOnly);
@@ -184,6 +186,8 @@ Denso::Denso(QWidget *parent)
     QJsonDocument doc = QJsonDocument::fromJson( sj );
     profiles.fromJson( doc.object() );
     qFile.close();
+
+    wndProfiles->load( settingsProfiles.fileName() );
 
     profileCombo.setFocusPolicy(Qt::NoFocus);
     profileCombo.addItem( "Image raw data" /* , const QVariant &userData = QVariant()) */ );
@@ -197,7 +201,6 @@ Denso::Denso(QWidget *parent)
 
     calib = tk::spline ( measured, expected, tk::spline::cspline );
 
-    wndProfiles = new ProfilesEditor (this);
     readSettings();
     readFile( fileName );
 }
@@ -269,7 +272,7 @@ inline QImage  cvMatToQImage( const cv::Mat &inMat )
 
 void Denso::closeEvent(QCloseEvent *event)
 {
-    QSettings settings("denso", "status" );
+    QSettings settings("denso", "meter" );
     settings.setValue("geometry", saveGeometry());
     settings.setValue("geometry_profiles", wndProfiles->saveGeometry() );
     settings.setValue("windowState", saveState());
@@ -286,7 +289,7 @@ void Denso::closeEvent(QCloseEvent *event)
 
 void Denso::readSettings()
 {
-    QSettings settings("denso", "status" );
+    QSettings settings("denso", "meter" );
     restoreGeometry(settings.value("geometry").toByteArray());
     wndProfiles->restoreGeometry(settings.value("geometry_profiles").toByteArray());
     restoreState(settings.value("windowState").toByteArray());
@@ -312,7 +315,7 @@ void Denso::onChangeProfile (int index)
 
     bCalib = index;
 
-    if ( index )
+    if ( index > 0 )
     {
         Profile *p = (Profile *)profiles.at( index - 1 );
         std::sort(p->expected.begin(), p->expected.end());

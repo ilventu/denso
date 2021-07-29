@@ -30,12 +30,15 @@ public:
 private:
     QString fileName;
     Mat img;
+    double img_min, img_max;
+
     double posx = 0;
     double posy = 0;
 
     int nrotation = 1;
     int nzoom = 3;
     int nlight = 1;
+    bool positive = false;
 
     void setRotation ( int n );
     void setZoom ( int n );

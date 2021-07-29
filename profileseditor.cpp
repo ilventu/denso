@@ -10,21 +10,60 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->tableValues->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+}
 
-    Profile *p = new Profile;
+ProfilesEditor::~ProfilesEditor()
+{
+    delete ui;
+}
 
-    p->name = "V850 Pro (Negative)";
-    p->expected = {    0.0891,    0.1259,    0.1778,    0.2512,    0.3548,    0.5012,    0.7079,    1,
-                       1.413,     1.995,     2.818,     3.981,     5.623,     7.943,     11.22,     15.85,
-                       22.39,     31.62,     44.67,     63.1,      89.13    };
+void ProfilesEditor::load ( const QString &filename )
+{
+    QFile qFile  ( filename );
 
-    p->measured = {    2.2565,    2.5935,    3.1845,    3.924,     4.739,     5.584,     6.9125,     8.336,
-                       10.125,    12.46,     15.83,     19.675,    24.96,     31.935,    39.225,     48.805,
-                       61.76,     76.245,    91.56,     96.32,     99.035    };
+    qFile.open(QIODevice::ReadOnly);
+    QByteArray sj = qFile.readAll();
+    QJsonDocument doc = QJsonDocument::fromJson( sj );
+    profiles.fromJson( doc.object() );
+    qFile.close();
 
-    p->measured = {    0.4515,    0.5971,    0.8838,    1.283,     1.829,     2.546,     3.892,      5.263,
-                       6.541,     8.172,     10.54,     13.19,     16.71,     21.21,     26.52,      33.65,
-                       41.83,     51.72,     64.82,     80,        94.22    };
+    ui->tableProfiles->setRowCount(  profiles.size() );
+
+    QIcon okicon = QIcon::fromTheme("emblem-ok");
+    QTableWidgetItem *newItem;
+    for ( int i = 0; i < profiles.size(); i++ )
+    {
+        newItem = new QTableWidgetItem( profiles.at(i)->name );
+        newItem->setIcon (okicon);
+        ui->tableProfiles->setItem( i, 0, newItem);
+    }
+}
+
+
+void ProfilesEditor::on_tableProfiles_cellChanged(int row, int column)
+{
+}
+
+
+void ProfilesEditor::on_tableProfiles_cellActivated(int row, int column)
+{
+
+}
+
+
+void ProfilesEditor::on_tableProfiles_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
+{
+    pCurrent = profiles.at(currentRow);
+    refresh();
+}
+
+void ProfilesEditor::refresh ()
+{
+    Profile *p = pCurrent;
+    if ( !p )
+        return;
+
+    pCurrent = nullptr;
 
     std::sort(p->expected.begin(), p->expected.end(), std::greater<double>());
     std::sort(p->measured.begin(), p->measured.end(), std::greater<double>());
@@ -38,15 +77,6 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
     seriesMeasured->setName( "Measured L" );
     seriesExpectedD->setName( "Expected D" );
     seriesMeasuredD->setName( "Measured D" );
-
-    QIcon okicon = QIcon::fromTheme("emblem-ok");
-    QTableWidgetItem *newItem;
-    newItem = new QTableWidgetItem("V850 Pro (Positive)");
-    newItem->setIcon (okicon);
-    ui->tableProfiles->setRowCount( 1 );
-    ui->tableProfiles->setItem( 0, 0, newItem);
-
-    ui->tableValues->setRowCount( p->expected.size() );
 
     QValueAxis *axisX = new QValueAxis;
     axisX->setTickCount( p->expected.size() );
@@ -64,16 +94,22 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
     axisYD->setLabelFormat("%.2f");
     axisYD->setMax( 4 );
 
+    int nRow = p->expected.size() > p->measured.size() ? p->expected.size() : p->measured.size();
+    ui->tableValues->setRowCount( nRow + 1 );
+
+    QTableWidgetItem *newItem;
     for ( unsigned int i = 0; i < p->expected.size(); i++)
     {
         seriesExpected->append(i + 1, p->expected.at(i) );
-        seriesMeasured->append(i + 1, p->measured.at(i) );
-
         seriesExpectedD->append(i + 1, log10 ( 100 / p->expected.at(i) ) );
-        seriesMeasuredD->append(i + 1, log10 ( 100 / p->measured.at(i) ) );
-
         newItem = new QTableWidgetItem(tr("%1").arg(p->expected.at(i)));
         ui->tableValues->setItem( i , 0, newItem);
+    }
+
+    for ( unsigned int i = 0; i < p->measured.size(); i++)
+    {
+        seriesMeasured->append(i + 1, p->measured.at(i) );
+        seriesMeasuredD->append(i + 1, log10 ( 100 / p->measured.at(i) ) );
         newItem = new QTableWidgetItem(tr("%1").arg(p->measured.at(i)));
         ui->tableValues->setItem( i , 1, newItem);
     }
@@ -100,25 +136,43 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
     seriesMeasuredD->attachAxis(axisX);
     seriesMeasuredD->attachAxis(axisYD);
 
-    QChartView *chartView = new QChartView(chart);
+    if (chartView)
+        ui->verticalLayout->removeWidget(chartView );
+    chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     ui->verticalLayout->addWidget(chartView);
 
-/*
-    QSettings settings ("denso", "profiles" );
-    QFile qFile  ( settings.fileName() );
-
-    p->name = "V850 Pro (Positive)";
-    profiles.append( p );
-    QJsonDocument doc(profiles.toJson());
-    QString json ( doc.toJson ( QJsonDocument::Indented ) );
-    qFile.open(QIODevice::WriteOnly);
-    QTextStream out(&qFile); out << json;
-    qFile.close();
-*/
+    pCurrent = p;
 }
 
-ProfilesEditor::~ProfilesEditor()
+
+void ProfilesEditor::on_tableValues_cellChanged(int row, int column)
 {
-    delete ui;
+    if ( pCurrent )
+    {
+        double value = ui->tableValues->item(row, column)->text().toDouble();;
+        std::vector<double> *vec;
+
+        if ( column )
+            vec = &(pCurrent->measured);
+        else
+            vec = &(pCurrent->expected);
+
+        if ( value )
+        {
+            if ( row < (int)vec->size() )
+                (*vec)[row] = value;
+            else
+                vec->push_back( value );
+        }
+        else
+            if ( row < (int)vec->size() )
+                vec->erase ( vec->begin() + row );
+
+        refresh();
+        QTableWidgetItem *item = ui->tableValues->item( row, column );
+        ui->tableValues->setCurrentCell( row, column, QItemSelectionModel::Select );
+        ui->tableValues->scrollToItem( item );
+    }
 }
+

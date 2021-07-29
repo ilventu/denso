@@ -6,6 +6,8 @@
 #include <QDialog>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QtCharts>
+#include <QLineSeries>
 
 namespace Ui {
 class ProfilesEditor;
@@ -55,6 +57,11 @@ public:
 class Profiles : public QObjectList
 {
 public:
+    Profile *at ( int i )
+    {
+        return (Profile *)QObjectList::at(i);
+    }
+
     QJsonObject toJson ()
     {
         QJsonArray jprofiles;
@@ -87,11 +94,26 @@ class ProfilesEditor : public QMainWindow
 {
     Q_OBJECT
 
+    Profiles profiles;
+    QChartView *chartView = nullptr;
+    Profile *pCurrent = nullptr;
+
+    void refresh ();
+
 public:
     explicit ProfilesEditor(QWidget *parent = nullptr);
     ~ProfilesEditor();
 
-    Profiles profiles;
+    void load ( const QString &filename );
+
+private slots:
+    void on_tableProfiles_cellChanged(int row, int column);
+
+    void on_tableProfiles_cellActivated(int row, int column);
+
+    void on_tableProfiles_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
+
+    void on_tableValues_cellChanged(int row, int column);
 
 private:
     Ui::ProfilesEditor *ui;
