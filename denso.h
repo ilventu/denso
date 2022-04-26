@@ -52,7 +52,6 @@ private:
     bool bCalib;
     tk::spline calib;
 
-    Profiles profiles;
     QComboBox profileCombo;
     ProfilesEditor *wndProfiles;
 

@@ -1,8 +1,36 @@
 #include "profileseditor.h"
 #include "ui_profileseditor.h"
 
+#include <algorithm>
+
 #include <QtCharts>
 #include <QLineSeries>
+
+std::vector<double> expected = {
+0,
+0.0891,
+0.1259,
+0.1778,
+0.2512,
+0.3548,
+0.5012,
+0.7079,
+1,
+1.413,
+1.995,
+2.818,
+3.981,
+5.623,
+7.943,
+11.22,
+15.85,
+22.39,
+31.62,
+44.67,
+63.1,
+89.13
+};
+
 
 ProfilesEditor::ProfilesEditor(QWidget *parent) :
     QMainWindow(parent),
@@ -10,6 +38,15 @@ ProfilesEditor::ProfilesEditor(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->tableValues->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    connect(ui->actionNew_profile, &QAction::triggered, [=]() {
+      onNewProfile();
+    });
+
+    connect(ui->actionSave, &QAction::triggered, [=]() {
+      onSave();
+    });
+
 }
 
 ProfilesEditor::~ProfilesEditor()
@@ -36,9 +73,42 @@ void ProfilesEditor::load ( const QString &filename )
         newItem = new QTableWidgetItem( profiles.at(i)->name );
         newItem->setIcon (okicon);
         ui->tableProfiles->setItem( i, 0, newItem);
+
+        std::sort(profiles.at(i)->expected.begin(), profiles.at(i)->expected.end(), std::greater<double>());
+        std::sort(profiles.at(i)->measured.begin(), profiles.at(i)->measured.end(), std::greater<double>());
     }
+
+    profilesFilename = filename;
 }
 
+void ProfilesEditor::onNewProfile()
+{
+    Profile *newProfile = new Profile;
+    newProfile->expected = expected;
+    std::sort(newProfile->expected.begin(), newProfile->expected.end(), std::greater<double>());
+    newProfile->name = "New";
+
+    profiles.push_back(newProfile);
+
+    QIcon okicon = QIcon::fromTheme("emblem-ok");
+    QTableWidgetItem *newItem;
+    ui->tableProfiles->insertRow ( ui->tableProfiles->rowCount() );
+    newItem = new QTableWidgetItem( newProfile->name );
+    newItem->setIcon (okicon);
+    ui->tableProfiles->setItem( ui->tableProfiles->rowCount() - 1, 0, newItem);
+}
+
+void ProfilesEditor::onSave()
+{
+    QFile qFile  ( profilesFilename );
+
+    qFile.open(QIODevice::WriteOnly);
+    QJsonDocument doc;
+    doc.setObject(  profiles.toJson() );
+    QByteArray sj = doc.toJson(QJsonDocument::Indented).toStdString().c_str();
+    qFile.write( sj.data(), sj.size() );
+    qFile.close();
+}
 
 void ProfilesEditor::on_tableProfiles_cellChanged(int row, int column)
 {
@@ -54,6 +124,26 @@ void ProfilesEditor::on_tableProfiles_cellActivated(int row, int column)
 void ProfilesEditor::on_tableProfiles_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
 {
     pCurrent = profiles.at(currentRow);
+
+    ui->tableValues->blockSignals(true);
+    unsigned int nRow = pCurrent->expected.size() > pCurrent->measured.size() ? pCurrent->expected.size() : pCurrent->measured.size() - 1;
+    ui->tableValues->setRowCount( 0 );
+    ui->tableValues->setRowCount( nRow );
+
+    for ( unsigned int i = 0; i < nRow; i++)
+    {
+        if ( i < pCurrent->expected.size() )
+            ui->tableValues->setItem( i , 0, new QTableWidgetItem(tr("%1").arg(pCurrent->expected.at(i))) );
+        else
+            ui->tableValues->setItem( i , 0, new QTableWidgetItem( "0" ) );
+
+        if ( i < pCurrent->measured.size() )
+            ui->tableValues->setItem( i , 1, new QTableWidgetItem(tr("%1").arg(pCurrent->measured.at(i))) );
+        else
+            ui->tableValues->setItem( i , 1, new QTableWidgetItem( "0" ) );
+    }
+
+    ui->tableValues->blockSignals(false);
     refresh();
 }
 
@@ -64,6 +154,8 @@ void ProfilesEditor::refresh ()
         return;
 
     pCurrent = nullptr;
+
+    unsigned int size = p->expected.size() - 1;
 
     std::sort(p->expected.begin(), p->expected.end(), std::greater<double>());
     std::sort(p->measured.begin(), p->measured.end(), std::greater<double>());
@@ -79,9 +171,9 @@ void ProfilesEditor::refresh ()
     seriesMeasuredD->setName( "Measured D" );
 
     QValueAxis *axisX = new QValueAxis;
-    axisX->setTickCount( p->expected.size() );
+    axisX->setTickCount( size  );
     axisX->setLabelFormat("%d");
-    axisX->setRange( 1, p->expected.size() );
+    axisX->setRange( 1, size );
 
     QValueAxis *axisY = new QValueAxis;
     axisY->setTickCount( 11 );
@@ -94,24 +186,16 @@ void ProfilesEditor::refresh ()
     axisYD->setLabelFormat("%.2f");
     axisYD->setMax( 4 );
 
-    int nRow = p->expected.size() > p->measured.size() ? p->expected.size() : p->measured.size();
-    ui->tableValues->setRowCount( nRow + 1 );
-
-    QTableWidgetItem *newItem;
-    for ( unsigned int i = 0; i < p->expected.size(); i++)
+    for ( unsigned int i = 0; i < size; i++)
     {
         seriesExpected->append(i + 1, p->expected.at(i) );
         seriesExpectedD->append(i + 1, log10 ( 100 / p->expected.at(i) ) );
-        newItem = new QTableWidgetItem(tr("%1").arg(p->expected.at(i)));
-        ui->tableValues->setItem( i , 0, newItem);
     }
 
-    for ( unsigned int i = 0; i < p->measured.size(); i++)
+    for ( unsigned int i = 0; i < std::min(size, (unsigned int)p->measured.size()); i++)
     {
         seriesMeasured->append(i + 1, p->measured.at(i) );
         seriesMeasuredD->append(i + 1, log10 ( 100 / p->measured.at(i) ) );
-        newItem = new QTableWidgetItem(tr("%1").arg(p->measured.at(i)));
-        ui->tableValues->setItem( i , 1, newItem);
     }
 
     QChart *chart = new QChart();
@@ -148,30 +232,41 @@ void ProfilesEditor::refresh ()
 
 void ProfilesEditor::on_tableValues_cellChanged(int row, int column)
 {
-    if ( pCurrent )
+    int rows = ui->tableValues->rowCount();
+
+    pCurrent->expected.clear();
+    pCurrent->measured.clear();
+
+    QTableWidgetItem *item;
+
+    for ( int i = 0; i < rows; i++ )
     {
-        double value = ui->tableValues->item(row, column)->text().toDouble();;
-        std::vector<double> *vec;
+        item = ui->tableValues->item ( i, 0 );
+        if ( item )
+            pCurrent->expected.push_back( item->text().toDouble() );
 
-        if ( column )
-            vec = &(pCurrent->measured);
-        else
-            vec = &(pCurrent->expected);
+        item = ui->tableValues->item ( i, 1 );
+        if ( item )
+            pCurrent->measured.push_back( item->text().toDouble() );
+    }
 
-        if ( value )
-        {
-            if ( row < (int)vec->size() )
-                (*vec)[row] = value;
-            else
-                vec->push_back( value );
-        }
-        else
-            if ( row < (int)vec->size() )
-                vec->erase ( vec->begin() + row );
+    refresh();
+}
 
-        refresh();
-        QTableWidgetItem *item = ui->tableValues->item( row, column );
-        ui->tableValues->setCurrentCell( row, column, QItemSelectionModel::Select );
+
+void ProfilesEditor::on_pushButton_4_clicked()
+{
+    QModelIndexList indexList = ui->tableValues->selectionModel()->selectedIndexes();
+    int row;
+    QTableWidgetItem *newItem;
+    foreach (QModelIndex index, indexList)
+    {
+        row = index.row();
+        newItem = new QTableWidgetItem(l);
+        ui->tableValues->setItem( row , 1, newItem);
+
+        QTableWidgetItem *item = ui->tableValues->item( row + 1, 1 );
+        ui->tableValues->setCurrentCell( row + 1, 1, QItemSelectionModel::ClearAndSelect );
         ui->tableValues->scrollToItem( item );
     }
 }

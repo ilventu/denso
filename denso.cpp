@@ -21,7 +21,7 @@ typedef unsigned short pixel;
 #define LUT_SIZE    (LMAX + 1)
 
 int rotations [] = { -1, cv::ROTATE_90_COUNTERCLOCKWISE, cv::ROTATE_180, cv::ROTATE_90_CLOCKWISE };
-double zooms [] = { 0.125, .25, .5, 1, 2, 4, 10 };
+double zooms [] = { .125, .25, .5, 1, 2, 4, 10 };
 double lights [] = { 1, 1.5, 2, 3, 4 };
 
 #define MAX_ROTATIONS   (int)(sizeof(rotations)/sizeof(int))-1
@@ -83,31 +83,6 @@ std::vector<double> measured = {
 83.242,
 98.1937647058824
 }; */
-
-// Stouffer
-std::vector<double> expected = {
-0.0891,
-0.1259,
-0.1778,
-0.2512,
-0.3548,
-0.5012,
-0.7079,
-1,
-1.413,
-1.995,
-2.818,
-3.981,
-5.623,
-7.943,
-11.22,
-15.85,
-22.39,
-31.62,
-44.67,
-63.1,
-89.13
-};
 
 std::vector<double> measured = {
 2.2565,
@@ -180,26 +155,23 @@ Denso::Denso(QWidget *parent)
     wndProfiles = new ProfilesEditor (this);
 
     QSettings settingsProfiles ("denso", "profiles" );
-    QFile qFile  ( settingsProfiles.fileName() );
+/*    QFile qFile  ( settingsProfiles.fileName() );
     qFile.open(QIODevice::ReadOnly);
     QByteArray sj = qFile.readAll();
     QJsonDocument doc = QJsonDocument::fromJson( sj );
-    profiles.fromJson( doc.object() );
-    qFile.close();
+    wndProfiles->profiles.fromJson( doc.object() );
+    qFile.close(); */
 
     wndProfiles->load( settingsProfiles.fileName() );
 
     profileCombo.setFocusPolicy(Qt::NoFocus);
     profileCombo.addItem( "Image raw data" /* , const QVariant &userData = QVariant()) */ );
 
-    for ( int i = 0; i < profiles.size(); i++ )
+    for ( int i = 0; i < wndProfiles->profiles.size(); i++ )
     {
-        Profile *p = (Profile *)profiles.at(i);
+        Profile *p = (Profile *)wndProfiles->profiles.at(i);
         profileCombo.addItem( p->name ); // "Negative (Stouffer T2115)" /* , const QVariant &userData = QVariant()) */ );
     }
-//    profileCombo.addItem( "Positive (Stouffer T2115)" /* , const QVariant &userData = QVariant()) */ );
-
-    calib = tk::spline ( measured, expected, tk::spline::cspline );
 
     readSettings();
     readFile( fileName );
@@ -317,7 +289,7 @@ void Denso::onChangeProfile (int index)
 
     if ( index > 0 )
     {
-        Profile *p = (Profile *)profiles.at( index - 1 );
+        Profile *p = (Profile *)wndProfiles->profiles.at( index - 1 );
         std::sort(p->expected.begin(), p->expected.end());
         std::sort(p->measured.begin(), p->measured.end());
         calib = tk::spline (p->measured, p->expected, tk::spline::cspline );
@@ -493,7 +465,8 @@ void Denso::draw( )
     int n = 0;
     double tot = 0;
     double totc = 0;
-//    double totd = 0;
+    double totd = 0;
+
     double zoom = zooms[nzoom];
 
     Mat draw8;
@@ -545,7 +518,7 @@ void Denso::draw( )
 
         Mat cropMat ( img ( imgRect ) );
         Mat resizeMat;
-        cv::resize( cropMat, resizeMat, cv::Size( roiRect.width, roiRect.height ), 0, 0, INTER_LINEAR_EXACT);
+        cv::resize( cropMat, resizeMat, cv::Size( roiRect.width, roiRect.height ), 0, 0, INTER_NEAREST);
 
     //imshow("cropMat", cropMat );
 
@@ -575,9 +548,14 @@ void Denso::draw( )
                 else
                     lc = p / LMAX * 100;
 
+                if ( lc > 100 )
+                    lc = 100;
+                if ( lc < 0.01 )   // dmax=4
+                    lc = 0.01;
+
                 tot += p / LMAX * 100;
                 totc += lc;
-//                totd += log10 ( 100 / lc );
+                totd += log10 ( 100 / lc );
                 n++;
 
                 p = LMAX * pow ( p / LMAX, 1 / 1.8 );
@@ -629,6 +607,7 @@ void Denso::draw( )
     renderer.render(&painter, mirino);
 
     double density = log10 ( 100 / ( totc / n ) );
+    double density2 = totd / n;
 
     QString s;
 
@@ -640,6 +619,9 @@ void Denso::draw( )
     painter.setPen( QColor ( 0xba, 0xb0, 0x13, .65 * 255 ) );
     painter.setFont( QFont (digitFont, 14 ));
     s = QString::number(totc / n, 'f', 4); // s.sprintf("%0.4f", totc / n );
+    if ( wndProfiles )
+        wndProfiles->setL (s);
+
     if ( s.length() < 6 ) s = "_" + s;
 
     if ( s.at(0) == '0' )
@@ -807,6 +789,5 @@ void Denso::keyPressEvent(QKeyEvent *event)
 
 void Denso::on_actionEdit_profiles_triggered()
 {
-
     wndProfiles->show( );
 }

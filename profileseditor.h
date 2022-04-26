@@ -94,17 +94,23 @@ class ProfilesEditor : public QMainWindow
 {
     Q_OBJECT
 
-    Profiles profiles;
     QChartView *chartView = nullptr;
     Profile *pCurrent = nullptr;
+
+    QString l;
+
+    QString profilesFilename;
 
     void refresh ();
 
 public:
+    Profiles profiles;
+
     explicit ProfilesEditor(QWidget *parent = nullptr);
     ~ProfilesEditor();
 
     void load ( const QString &filename );
+    void setL ( const QString &lpercent) { l = lpercent; };
 
 private slots:
     void on_tableProfiles_cellChanged(int row, int column);
@@ -115,8 +121,13 @@ private slots:
 
     void on_tableValues_cellChanged(int row, int column);
 
+    void on_pushButton_4_clicked();
+
 private:
     Ui::ProfilesEditor *ui;
+
+    void onNewProfile();
+    void onSave();
 };
 
 #endif // PROFILESEDITOR_H
